@@ -63,7 +63,7 @@ Build a landing page for a running brand. Athletic, peak performance, green and 
 
 The bar is Nike's current running campaign page. Screenshot it at desktop and mobile and compare against those directly, not against a description of them.
 
-Break this into the smallest pieces that can be improved and judged on their own - hero, motion, type, colour, imagery, interaction, mobile. For each piece, fan out a builder and a separate critic with fresh context. The critic opens the real page in a browser, puts our screenshot next to Nike's blind with the labels stripped, says which is better, and names the single biggest remaining gap. Then it goes back to the builder.
+Break this into the smallest pieces that can be improved and judged on their own - hero, motion, type, colour, imagery, interaction, mobile. For each piece, a planner cuts it into small tasks. Each builder takes one task and implements it quickly, without planning. Then a separate critic with fresh context judges the result. The critic opens the real page in a browser, puts our screenshot next to Nike's blind with the labels stripped, says which is better, and names the single biggest remaining gap. Then it goes back to the builder.
 
 The critic should be a harsh critic. Praise is not useful. If ours does not win, it keeps going.
 
@@ -71,7 +71,9 @@ The critic should be a harsh critic. Praise is not useful. If ours does not win,
 
 Keep a live progress page updating as the work evolves so I can watch it.
 
-Fan out subagents. You orchestrate on Opus 5.5. Planners, builders and critics run on Opus 5.5 at medium effort. Quick commands and terminal work run on Haiku 5.5 at high effort.
+This run has to last 7 days on a Claude Max 5x plan. Keep at most 4 subagents alive at once, with no more than 1 of them on Opus. Check usage before every round. Spend no more than 12% of the weekly limit in a day. When today's share is gone, schedule a wakeup for tomorrow and pause instead of pushing through.
+
+Fan out subagents. You orchestrate on Opus 5.5. Planners and critics run on Opus 5.5 at medium effort. Builders run on Sonnet 5.5 at medium effort. Quick commands and terminal work run on Haiku 5.5 at high effort.
 ```
 
 ## Model routing (the "cheap" part)
@@ -81,10 +83,21 @@ Every generated prompt ends with the same routing line, so the loop stays afford
 | Role | Model |
 |---|---|
 | Lead agent / orchestration | Opus 5.5 |
-| Planners, builders, critics | Opus 5.5 at **medium** effort |
+| Planners and critics | Opus 5.5 at **medium** effort |
+| Builders (one small task each, no planning) | Sonnet 5.5 at **medium** effort |
 | Commands and terminal work (builds, tests, screenshots, fetches) | Haiku 5.5 at **high** effort |
 
-The loop fans out with plain subagents rather than Workflow orchestration. No budget cap is added unless you name one.
+The loop fans out with plain subagents rather than Workflow orchestration.
+
+## Budget
+
+Every prompt also carries a default budget sized so a Claude Max 5x plan lasts 7 days:
+
+- No more than 4 subagents alive at once, and only 1 of them on Opus.
+- No more than 12% of the weekly limit spent per day.
+- When the day's share is used up, the loop pauses until the next day.
+
+If you name a different plan, run length or cap, those values replace the defaults.
 
 ## Using it outside Claude Code
 

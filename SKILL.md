@@ -16,7 +16,7 @@ You are not doing the work. You are writing the prompt that makes another agent 
 3. **Write the prompt.** One block, paste-ready, no preamble, no headings inside it, no narration after it.
 4. **Offer to run it.** One flat line under the prompt: "I can run this here." Not a question.
 
-If they say run it, you become the lead agent and follow the prompt you just wrote. Spawn subagents with the Agent tool, setting `model` and `effort` per the routing below (`opus` + `medium` for planners, builders and critics; `haiku` + `high` for command and terminal runs). Do not use the Workflow tool or ultracode.
+If they say run it, you become the lead agent and follow the prompt you just wrote. Spawn subagents with the Agent tool, setting `model` and `effort` per the routing below (`opus` + `medium` for planners and critics; `sonnet` + `medium` for builders; `haiku` + `high` for command and terminal runs). Give each builder exactly one small, already-planned task, with the files and the definition of done spelled out, so it can implement straight away without planning. Obey the budget below. Do not use the Workflow tool or ultracode.
 
 ## The bar is the whole trick
 
@@ -52,7 +52,7 @@ Build [GOAL].
 
 The bar is [BAR]. Get the real thing first and compare against it directly, not against a description of it.
 
-Break this into the smallest pieces that can be improved and judged on their own. For each piece, fan out a builder and a separate critic with fresh context. The critic inspects the actual output, puts it next to the bar blind with the labels stripped, says which one is better, and names the single biggest remaining gap. Then it goes back to the builder.
+Break this into the smallest pieces that can be improved and judged on their own. For each piece, a planner cuts it into small tasks. Each builder takes one task and implements it quickly, without planning. Then a separate critic with fresh context judges the result. The critic inspects the actual output, puts it next to the bar blind with the labels stripped, says which one is better, and names the single biggest remaining gap. Then it goes back to the builder.
 
 The critic should be a harsh critic. Praise is not useful. If ours does not win, it keeps going.
 
@@ -60,20 +60,22 @@ The critic should be a harsh critic. Praise is not useful. If ours does not win,
 
 Keep a live progress page updating as the work evolves so I can watch it.
 
-Fan out subagents. You orchestrate on Opus 5.5. Planners, builders and critics run on Opus 5.5 at medium effort. Quick commands and terminal work run on Haiku 5.5 at high effort.
+This run has to last 7 days on a Claude Max 5x plan. Keep at most 4 subagents alive at once, with no more than 1 of them on Opus. Check usage before every round. Spend no more than 12% of the weekly limit in a day. When today's share is gone, schedule a wakeup for tomorrow and pause instead of pushing through.
+
+Fan out subagents. You orchestrate on Opus 5.5. Planners and critics run on Opus 5.5 at medium effort. Builders run on Sonnet 5.5 at medium effort. Quick commands and terminal work run on Haiku 5.5 at high effort.
 ```
 
 Rules for what you fill in:
 
 - Bake the bar in as a concrete, fetchable thing. URL, product name, repo, title.
-- Add a budget or cost ceiling line **only if the user named one**. No default cap.
+- Always include the budget line, word for word, as the second-to-last line. If the user names a different plan, run length or cap, swap those values into it.
 - Always keep the model routing line as the last line, word for word.
 - Add tool names only if the goal needs them (image or video generation, a browser, a deploy target).
 - Everything else stays out. No architecture, no file layout, no decomposition, no round count, no stack choice unless the user demanded it. The agent decides those, and it decides better than a spec written before the work started.
 
 ## Length and voice
 
-Short. Around 120 to 180 words. If the prompt needs a heading to stay readable, it is too long.
+Short. Around 160 to 220 words, budget line included. If the prompt needs a heading to stay readable, it is too long.
 
 Plain sentences. No bullet lists inside the prompt. It should read like someone telling an agent what perfect looks like and refusing to accept less.
 
@@ -83,12 +85,21 @@ Plain sentences. No bullet lists inside the prompt. It should read like someone 
 
 For any other agent, swap the `/loop` line for: "Keep looping until the critic picks ours. Run the builders and critics as parallel subagents." Keep the model routing line if that agent can pick models per subagent; drop it if not. The structure carries over unchanged.
 
+## Budget
+
+The default budget assumes a Claude Max 5x plan that has to last 7 days. Anthropic does not publish exact weekly caps. Third-party estimates for Max 5x put Opus at about 22 to 52 hours a week, and that allowance is shared with everything else the user does in Claude. So plan from the low end, around 25 Opus hours a week, or about 3.5 a day.
+
+Every Opus agent running in parallel burns that allowance at once, and the lead counts as one. That is why most of the volume goes to builders on Sonnet. Opus only does the thinking: planning the tasks and judging the result. With 1 Opus subagent at a time, Opus runs at no more than twice the rate. The other 3 slots go to up to 2 Sonnet builders working on separate tasks and 1 Haiku runner for builds, screenshots and fetches. Sonnet and Haiku cost much less and run faster. Note that Max plans also have a separate weekly limit for Sonnet.
+
+The concurrency cap only controls how fast the budget is spent. The daily cap is what makes it last the week. 12% a day comes to 84% over 7 days, which leaves about 15% for the user's own work. The lead checks remaining quota before each round, using `/usage` or the session usage tool. When the day's share is spent, it pauses with ScheduleWakeup instead of draining the week early.
+
 ## Model routing
 
 Every prompt ends with the same routing line. Do not change it unless the user asks.
 
 - **Lead agent / orchestration:** Opus 5.5 (`claude-opus-5-5`).
-- **Planners, builders, critics:** Opus 5.5 at medium effort.
+- **Planners and critics:** Opus 5.5 at medium effort. Planners split each piece into small tasks a builder can finish in one short run. Critics judge blind against the bar.
+- **Builders:** Sonnet 5.5 (`claude-sonnet-5-5`) at medium effort. One small task per builder. Builders don't plan or redesign; they implement the task they were given, fast, and hand it back.
 - **Quick command execution and terminal work** (running builds, tests, screenshots, fetches, file shuffling): Haiku 5.5 (`claude-haiku-5-5`) at high effort.
 
 ## Two filled examples
@@ -102,7 +113,7 @@ Build a landing page for a running brand. Athletic, peak performance, green and 
 
 The bar is Nike's current running campaign page. Screenshot it at desktop and mobile and compare against those directly, not against a description of them.
 
-Break this into the smallest pieces that can be improved and judged on their own - hero, motion, type, colour, imagery, interaction, mobile. For each piece, fan out a builder and a separate critic with fresh context. The critic opens the real page in a browser, puts our screenshot next to Nike's blind with the labels stripped, says which is better, and names the single biggest remaining gap. Then it goes back to the builder.
+Break this into the smallest pieces that can be improved and judged on their own - hero, motion, type, colour, imagery, interaction, mobile. For each piece, a planner cuts it into small tasks. Each builder takes one task and implements it quickly, without planning. Then a separate critic with fresh context judges the result. The critic opens the real page in a browser, puts our screenshot next to Nike's blind with the labels stripped, says which is better, and names the single biggest remaining gap. Then it goes back to the builder.
 
 The critic should be a harsh critic. Praise is not useful. If ours does not win, it keeps going.
 
@@ -110,7 +121,9 @@ The critic should be a harsh critic. Praise is not useful. If ours does not win,
 
 Keep a live progress page updating as the work evolves so I can watch it.
 
-Fan out subagents. You orchestrate on Opus 5.5. Planners, builders and critics run on Opus 5.5 at medium effort. Quick commands and terminal work run on Haiku 5.5 at high effort.
+This run has to last 7 days on a Claude Max 5x plan. Keep at most 4 subagents alive at once, with no more than 1 of them on Opus. Check usage before every round. Spend no more than 12% of the weekly limit in a day. When today's share is gone, schedule a wakeup for tomorrow and pause instead of pushing through.
+
+Fan out subagents. You orchestrate on Opus 5.5. Planners and critics run on Opus 5.5 at medium effort. Builders run on Sonnet 5.5 at medium effort. Quick commands and terminal work run on Haiku 5.5 at high effort.
 ```
 
 **Non-visual goal.** User: "a 2000-word explainer on vector databases for non-engineers."
@@ -122,7 +135,7 @@ Write a 2000-word explainer on vector databases for readers who are smart but no
 
 The bar is Julia Evans' writing on hard technical topics. Pull three of her actual posts and compare against them directly, not against a description of her style.
 
-Break this into the smallest pieces that can be judged on their own - the opening, each explanation, the diagrams, the analogies, the ending. For each piece, fan out a writer and a separate critic with fresh context. The critic reads ours and hers blind with the bylines stripped, says which one a non-engineer would understand faster, and names the single biggest remaining gap. Then it goes back to the writer.
+Break this into the smallest pieces that can be judged on their own - the opening, each explanation, the diagrams, the analogies, the ending. For each piece, a planner cuts it into small tasks. Each writer takes one task and drafts it quickly, without planning. Then a separate critic with fresh context judges the result. The critic reads ours and hers blind with the bylines stripped, says which one a non-engineer would understand faster, and names the single biggest remaining gap. Then it goes back to the writer.
 
 The critic should be a harsh critic. Praise is not useful. If ours does not win, it keeps going.
 
@@ -130,7 +143,9 @@ The critic should be a harsh critic. Praise is not useful. If ours does not win,
 
 Keep a live progress page updating as the work evolves so I can watch it.
 
-Fan out subagents. You orchestrate on Opus 5.5. Planners, builders and critics run on Opus 5.5 at medium effort. Quick commands and terminal work run on Haiku 5.5 at high effort.
+This run has to last 7 days on a Claude Max 5x plan. Keep at most 4 subagents alive at once, with no more than 1 of them on Opus. Check usage before every round. Spend no more than 12% of the weekly limit in a day. When today's share is gone, schedule a wakeup for tomorrow and pause instead of pushing through.
+
+Fan out subagents. You orchestrate on Opus 5.5. Planners and critics run on Opus 5.5 at medium effort. Builders run on Sonnet 5.5 at medium effort. Quick commands and terminal work run on Haiku 5.5 at high effort.
 ```
 
 ## What breaks a gauntlet loop
@@ -139,4 +154,5 @@ Fan out subagents. You orchestrate on Opus 5.5. Planners, builders and critics r
 - **The builder judging its own work.** The critic must be a separate agent with fresh context. It should not know how hard the builder tried.
 - **A soft critic.** Say "harsh" in the prompt and give it a binary job: which one is better, A or B. Scores out of 10 drift upward every round.
 - **Named exit after N rounds.** The exit is winning the comparison, or the user stopping the run. Never a round count.
+- **Unbounded fan-out.** Ten Opus agents in parallel can spend a week's allowance in one afternoon, and then the loop dies with the work half done. Keep the cap and the daily pacing.
 - **Over-specifying.** Every extra instruction is one fewer decision the agent makes with its own judgment. Minimal wins.
